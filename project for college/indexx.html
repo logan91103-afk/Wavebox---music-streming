@@ -1,0 +1,297 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="stylesheet" href="sttyle.css">
+<script src="script.js"></script>
+<title>Wavebox - Music Streaming</title>
+
+</head>
+<body>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="logo">🎵 Wavebox</div>
+    <div class="nav-item active" data-view="home"><span class="bn-icon">🏠</span><span class="nav-label">Home</span></div>
+    <div class="nav-item" data-view="search"><span class="bn-icon">🔍</span><span class="nav-label">Search</span></div>
+    <div class="nav-item" data-view="liked"><span class="bn-icon">❤️</span><span class="nav-label">Liked Songs</span></div>
+
+    <div class="playlist-title">Playlists</div>
+    <div class="playlist-item">Chill Mix</div>
+    <div class="playlist-item">Focus Flow</div>
+    <div class="playlist-item">Road Trip</div>
+    <div class="playlist-item">Throwback Hits</div>
+  </div>
+
+  <div class="content">
+    <input type="text" class="search-bar" id="searchInput" placeholder="Search for songs, artists...">
+    <h1 id="contentTitle">Good evening</h1>
+
+    <div class="cards" id="cardGrid"></div>
+
+    <h1 style="font-size:20px; margin-bottom:1rem;">Recently played</h1>
+    <div class="track-list" id="trackList"></div>
+  </div>
+</div>
+
+<div class="player">
+  <div class="mobile-progress"><div class="mobile-progress-fill" id="mobileProgressFill"></div></div>
+
+  <div class="player-left">
+    <div class="player-art" id="playerArt"></div>
+    <div class="player-track-info">
+      <div class="player-track-title" id="playerTitle">Select a track</div>
+      <div class="player-track-artist" id="playerArtist">—</div>
+    </div>
+    <span class="like-btn" id="likeBtn">♡</span>
+  </div>
+
+  <div class="player-center">
+    <div class="controls">
+      <span class="icon">🔀</span>
+      <span class="icon" id="prevBtn">⏮</span>
+      <span class="icon play-pause" id="playBtn">▶️</span>
+      <span class="icon" id="nextBtn">⏭</span>
+      <span class="icon">🔁</span>
+    </div>
+    <div class="progress-row">
+      <span id="currentTime">0:00</span>
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <span id="totalTime">0:00</span>
+    </div>
+  </div>
+
+  <div class="player-right">
+    <span class="icon">🔊</span>
+    <div class="volume-bar" id="volumeBar">
+      <div class="volume-fill" id="volumeFill"></div>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-nav">
+  <div class="nav-item active" data-view="home"><span class="bn-icon">🏠</span><span>Home</span></div>
+  <div class="nav-item" data-view="search"><span class="bn-icon">🔍</span><span>Search</span></div>
+  <div class="nav-item" data-view="liked"><span class="bn-icon">❤️</span><span>Liked</span></div>
+</div>
+
+<audio id="audioPlayer"></audio>
+
+<script>
+const tracks = [
+  { title: "Midnight Drive", artist: "Nova Sound", album: "Neon Nights", duration: "3:42", cover: "https://picsum.photos/seed/track1/300/300", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
+  { title: "Golden Hour", artist: "Lia Park", album: "Sunset Sessions", duration: "4:01", cover: "https://picsum.photos/seed/track2/300/300", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
+  { title: "Static Bloom", artist: "Echo Ridge", album: "Frequencies", duration: "2:58", cover: "https://picsum.photos/seed/track3/300/300", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" },
+  { title: "Paper Planes", artist: "Nova Sound", album: "Neon Nights", duration: "3:15", cover: "https://picsum.photos/seed/track4/300/300", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3" },
+  { title: "Slow Burn", artist: "Quiet Atlas", album: "Embers", duration: "3:50", cover: "https://picsum.photos/seed/track5/300/300", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3" },
+  { title: "City Lights", artist: "Lia Park", album: "Sunset Sessions", duration: "3:33", cover: "https://picsum.photos/seed/track6/300/300", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3" }
+];
+
+const playlists = [
+  { name: "Daily Mix 1", sub: "Made for you", art: "https://picsum.photos/seed/playlist1/300/300" },
+  { name: "Liked Songs", sub: "Your favorites", art: "https://picsum.photos/seed/playlist2/300/300" },
+  { name: "Chill Mix", sub: "Relax & unwind", art: "https://picsum.photos/seed/playlist3/300/300" },
+  { name: "Focus Flow", sub: "Deep concentration", art: "https://picsum.photos/seed/playlist4/300/300" },
+  { name: "Road Trip", sub: "Drive playlist", art: "https://picsum.photos/seed/playlist5/300/300" },
+];
+
+let currentIndex = -1;
+let isPlaying = false;
+let likedTracks = new Set();
+
+// Builds a YouTube Music search link for a given playlist/track query
+function ytMusicSearchUrl(query) {
+  return `https://music.youtube.com/search?q=${encodeURIComponent(query)}`;
+}
+
+const audio = document.getElementById('audioPlayer');
+const playBtn = document.getElementById('playBtn');
+const playerArt = document.getElementById('playerArt');
+const playerTitle = document.getElementById('playerTitle');
+const playerArtist = document.getElementById('playerArtist');
+const progressFill = document.getElementById('progressFill');
+const mobileProgressFill = document.getElementById('mobileProgressFill');
+const progressBar = document.getElementById('progressBar');
+const currentTimeEl = document.getElementById('currentTime');
+const totalTimeEl = document.getElementById('totalTime');
+const likeBtn = document.getElementById('likeBtn');
+const volumeBar = document.getElementById('volumeBar');
+const volumeFill = document.getElementById('volumeFill');
+
+const cardGrid = document.getElementById('cardGrid');
+playlists.forEach(p => {
+  const card = document.createElement('a');
+  card.className = 'card';
+  card.href = ytMusicSearchUrl(p.name);
+  card.target = '_blank';
+  card.rel = 'noopener noreferrer';
+  card.innerHTML = `
+    <div class="art" style="background-image:url('${p.art}')"></div>
+    <p class="title">${p.name}</p>
+    <p class="sub">${p.sub}</p>
+  `;
+  cardGrid.appendChild(card);
+});
+
+const trackList = document.getElementById('trackList');
+
+function renderTracks(list) {
+  trackList.innerHTML = '';
+  list.forEach((track, i) => {
+    const row = document.createElement('a');
+    row.className = 'track-row';
+    row.href = ytMusicSearchUrl(`${track.title} ${track.artist}`);
+    row.target = '_blank';
+    row.rel = 'noopener noreferrer';
+    if (i === currentIndex) row.classList.add('playing');
+    row.innerHTML = `
+      <div class="track-art" style="background-image:url('${track.cover}')"></div>
+      <div class="track-info">
+        <div class="t-title">${track.title}</div>
+        <div class="t-artist">${track.artist}</div>
+      </div>
+      <div class="track-duration">${track.duration}</div>
+    `;
+    row.addEventListener('click', () => playTrack(i));
+    trackList.appendChild(row);
+  });
+}
+renderTracks(tracks);
+
+function playTrack(index) {
+  currentIndex = index;
+  const track = tracks[index];
+
+  audio.src = track.audioUrl;
+  audio.play().catch(() => {});
+
+  playerArt.style.backgroundImage = `url('${track.cover}')`;
+  playerTitle.textContent = track.title;
+  playerArtist.textContent = track.artist;
+
+  isPlaying = true;
+  playBtn.textContent = '⏸️';
+
+  likeBtn.classList.toggle('liked', likedTracks.has(index));
+  likeBtn.textContent = likedTracks.has(index) ? '♥' : '♡';
+
+  renderTracks(tracks);
+}
+
+function togglePlay() {
+  if (currentIndex === -1) {
+    playTrack(0);
+    return;
+  }
+  if (isPlaying) {
+    audio.pause();
+    playBtn.textContent = '▶️';
+  } else {
+    audio.play();
+    playBtn.textContent = '⏸️';
+  }
+  isPlaying = !isPlaying;
+}
+
+function nextTrack() {
+  if (currentIndex === -1) return playTrack(0);
+  playTrack((currentIndex + 1) % tracks.length);
+}
+
+function prevTrack() {
+  if (currentIndex === -1) return playTrack(0);
+  playTrack((currentIndex - 1 + tracks.length) % tracks.length);
+}
+
+playBtn.addEventListener('click', togglePlay);
+document.getElementById('nextBtn').addEventListener('click', nextTrack);
+document.getElementById('prevBtn').addEventListener('click', prevTrack);
+
+audio.addEventListener('timeupdate', () => {
+  if (!audio.duration) return;
+  const pct = (audio.currentTime / audio.duration) * 100;
+  progressFill.style.width = pct + '%';
+  mobileProgressFill.style.width = pct + '%';
+  currentTimeEl.textContent = formatTime(audio.currentTime);
+  totalTimeEl.textContent = formatTime(audio.duration);
+});
+
+audio.addEventListener('ended', () => {
+  nextTrack();
+});
+
+progressBar.addEventListener('click', (e) => {
+  if (!audio.duration) return;
+  const rect = progressBar.getBoundingClientRect();
+  const pct = (e.clientX - rect.left) / rect.width;
+  audio.currentTime = pct * audio.duration;
+});
+
+function formatTime(sec) {
+  if (isNaN(sec)) return '0:00';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+audio.volume = 0.7;
+volumeBar.addEventListener('click', (e) => {
+  const rect = volumeBar.getBoundingClientRect();
+  const pct = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
+  audio.volume = pct;
+  volumeFill.style.width = (pct * 100) + '%';
+});
+
+likeBtn.addEventListener('click', () => {
+  if (currentIndex === -1) return;
+  if (likedTracks.has(currentIndex)) {
+    likedTracks.delete(currentIndex);
+    likeBtn.classList.remove('liked');
+    likeBtn.textContent = '♡';
+  } else {
+    likedTracks.add(currentIndex);
+    likeBtn.classList.add('liked');
+    likeBtn.textContent = '♥';
+  }
+});
+
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  const q = e.target.value.toLowerCase();
+  const filtered = tracks.filter(t =>
+    t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q)
+  );
+  renderTracks(filtered);
+});
+
+// Sidebar (desktop) and bottom-nav (mobile) items share the same data-view
+// values, so a click on either one keeps both in sync.
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const view = item.dataset.view;
+    document.querySelectorAll('.nav-item').forEach(i => {
+      i.classList.toggle('active', i.dataset.view === view);
+    });
+
+    if (view === 'home') {
+      document.getElementById('contentTitle').textContent = 'Good evening';
+      cardGrid.style.display = 'grid';
+      renderTracks(tracks);
+    } else if (view === 'search') {
+      document.getElementById('contentTitle').textContent = 'Search';
+      cardGrid.style.display = 'none';
+      renderTracks(tracks);
+    } else if (view === 'liked') {
+      document.getElementById('contentTitle').textContent = 'Liked Songs';
+      cardGrid.style.display = 'none';
+      renderTracks(tracks.filter((_, i) => likedTracks.has(i)));
+    }
+  });
+});
+</script>
+
+</body>
+</html>
